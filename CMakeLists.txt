@@ -14,7 +14,7 @@ if(OPENGL_FOUND)
   add_definitions(-DHAS_OPENGL -DHAS_GL)
   set(DEPLIBS ${OPENGL_LIBRARIES} ${SOIL_LIBRARIES})
 else()
-  message(FATAL_ERROR "No rendering API found. Bailing")
+  message(FATAL_ERROR "Unimplemented rendering API! Currently this add-on is only available for OpenGL")
 endif()
 
 include_directories(${INCLUDES}
