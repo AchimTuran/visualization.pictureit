@@ -1,4 +1,5 @@
-#include "xbmc_vis_dll.h"
+#include "pictureit.h"
+#include <kodi/xbmc_vis_dll.h>
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -15,6 +16,18 @@
 
 #include <GL/gl.h>
 #include "SOIL.h"
+
+// The includes and variables are defined here just because I'm still not too keen on the whole rfft thing
+// At some point it might make sense to switch to FFTW for better performance once a proper spectrum is in place
+#include "mrfft.h"
+#include <memory>
+
+// global default add-on handles
+ADDON_STATUS m_CurStatus    = ADDON_STATUS_UNKNOWN;
+CHelper_libXBMC_addon *KODI = NULL;
+
+// global fft handle
+std::unique_ptr<MRFFT> m_transform;
 
 /*
 * "img_tex_ids" holds the texture-ids for images:
@@ -355,7 +368,6 @@ extern "C" void Render() {
 
         fade_current = 0.0f;
         fade_offset_ms = get_current_time_ms() % fade_time_ms;
-
     }
 
     // If we are within a crossfade, fade out the current image
@@ -430,14 +442,27 @@ extern "C" void Render() {
 //-- Create -------------------------------------------------------------------
 // Called on load. Addon should fully initalize or return error status
 //-----------------------------------------------------------------------------
-ADDON_STATUS ADDON_Create( void* hdl, void* props ) {
-    if ( ! props )
-        return ADDON_STATUS_UNKNOWN;
-    
-    // Seed the psuedo-random number generator
-    std::srand( time(0) );
+ADDON_STATUS ADDON_Create(void* hdl, void* props)
+{
+  if (!hdl || !props)
+  {
+    return ADDON_STATUS_UNKNOWN;
+  }
 
-    return ADDON_STATUS_NEED_SETTINGS;
+  KODI = new CHelper_libXBMC_addon;
+  if (!KODI->RegisterMe(hdl))
+  {
+    SAFE_DELETE(KODI);
+    return ADDON_STATUS_PERMANENT_FAILURE;
+  }
+  KODI->Log(LOG_DEBUG, "%s - Creating PictureIt add-on", __FUNCTION__);
+
+  // Seed the psuedo-random number generator
+  std::srand( time(0) );
+
+  m_CurStatus = ADDON_STATUS_NEED_SETTINGS;
+  
+  return m_CurStatus;
 }
 
 extern "C" void Start(int iChannels, int iSamplesPerSec, int iBitsPerSample, const char* szSongName) {
@@ -451,13 +476,7 @@ extern "C" void Start(int iChannels, int iSamplesPerSec, int iBitsPerSample, con
     }
 }
 
-// The includes and variables are defined here just because I'm still not too keen on the whole
-// rfft thing
-// At some point it might make sense to switch to FFTW for better performance once a proper spectrum
-// is in place
-#include "mrfft.h"
-#include <memory>
-std::unique_ptr<MRFFT> m_transform;
+// Store and process the audio data, which is received from Kodi's media player
 extern "C" void AudioData(const float* pAudioData, int iAudioDataLength, float *pFreqData, int iFreqDataLength) {
     if ( ! vis_enabled )
         return;
@@ -523,7 +542,8 @@ extern "C" bool OnAction(long flags, const void *param) {
                 select_preset( (*( (int*) param )) );
             else
                 ret = false;
-            break;
+        break;
+            
         case VIS_ACTION_NEXT_PRESET:
             if ( ! preset_locked ) {
                 if ( preset_random ) {
@@ -534,7 +554,8 @@ extern "C" bool OnAction(long flags, const void *param) {
                         preset_index = 0;
                 }
             }
-            break;
+        break;
+            
         case VIS_ACTION_PREV_PRESET:
             if ( ! preset_locked ) {
                 if ( preset_random ) {
@@ -545,19 +566,24 @@ extern "C" bool OnAction(long flags, const void *param) {
                         preset_index = pi_presets.size();
                 }
             }
-            break;
+        break;
+        
         case VIS_ACTION_RANDOM_PRESET:
             preset_random = !preset_random;
-            break;
+        break;
+        
         case VIS_ACTION_LOCK_PRESET:
             preset_locked = !preset_locked;
-            break;
+        break;
+        
         case VIS_ACTION_UPDATE_TRACK:
             if ( update_on_new_track )
                 update_img = true;
-            break;
+        break;
+        
         default:
             ret = false;
+        break;
     }
 
     return ret;
@@ -608,7 +634,15 @@ extern "C" void ADDON_Stop() {}
 // Do everything before unload of this add-on
 // !!! Add-on master function !!!
 //-----------------------------------------------------------------------------
-extern "C" void ADDON_Destroy() {}
+extern "C" void ADDON_Destroy()
+{
+  if(KODI)
+  {
+    SAFE_DELETE(KODI); 
+  }
+  
+  m_CurStatus = ADDON_STATUS_UNKNOWN;
+}
 
 //-- HasSettings --------------------------------------------------------------
 // Returns true if this add-on use settings
@@ -622,8 +656,9 @@ extern "C" bool ADDON_HasSettings() {
 // Returns the current Status of this visualisation
 // !!! Add-on master function !!!
 //-----------------------------------------------------------------------------
-extern "C" ADDON_STATUS ADDON_GetStatus() {
-    return ADDON_STATUS_OK;
+extern "C" ADDON_STATUS ADDON_GetStatus()
+{
+  return m_CurStatus;
 }
 
 //-- GetSettings --------------------------------------------------------------
@@ -638,56 +673,62 @@ extern "C" unsigned int ADDON_GetSettings(ADDON_StructSetting ***sSet) {
 // Free the settings struct passed from XBMC
 // !!! Add-on master function !!!
 //-----------------------------------------------------------------------------
-
 extern "C" void ADDON_FreeSettings() {}
 
 //-- SetSetting ---------------------------------------------------------------
 // Set a specific Setting value (called from XBMC)
 // !!! Add-on master function !!!
 //-----------------------------------------------------------------------------
-extern "C" ADDON_STATUS ADDON_SetSetting( const char *strSetting, const void* value ) {
-    if ( ! strSetting || ! value )
+extern "C" ADDON_STATUS ADDON_SetSetting( const char *strSetting, const void* Value ) {
+    if ( !strSetting || !Value )
         return ADDON_STATUS_UNKNOWN;
 
     std::string str = strSetting;
 
-    if ( str == "presets_root_dir" ) {
-        const char* dir = (const char*) value;
+    if ( str == "presets_root_dir" )
+    {
+        const char* dir = (const char*)Value;
         if ( dir && !dir[0] )
-            return ADDON_STATUS_NEED_SETTINGS;
+        {
+          m_CurStatus = ADDON_STATUS_NEED_SETTINGS;
+          return m_CurStatus;
+        }
         presets_root_dir = dir;
     }
 
     if ( str == "update_on_new_track" )
-        update_on_new_track = *(bool*)value;
+        update_on_new_track = *((bool*)Value);
 
     if ( str == "update_by_interval" )
-        update_by_interval = *(bool*)value;
+        update_by_interval = *((bool*)Value);
 
     if ( str == "img_update_interval" )
-        img_update_interval = (*(int*) value) * 60;
+        img_update_interval = *((int*)Value)) * 60;
 
     if ( str == "fade_time_ms" )
-        fade_time_ms = (*(int*) value) * 1000;
+        fade_time_ms = *((int*)Value) * 1000;
 
     if ( str == "vis_enabled" )
-        vis_enabled = *(bool*)value;
+        vis_enabled = *((bool*)Value);
 
     if ( str == "vis_bg_enabled" )
-        vis_bg_enabled = *(bool*)value;
+        vis_bg_enabled = *((bool*)Value);
 
     if ( str == "vis_half_width" )
-        vis_width = ((*(int*) value) * 1.0f / 100);
+        vis_width = (*((int*)Value)) * 1.0) / 100.0);
 
-    if ( str == "vis_bottom_edge" ) {
-        float scale[] = { 1.0, 0.98, 0.96, 0.94, 0.92, 0.90, 0.88, 0.86, 0.84, 0.82, 0.80 };
-        vis_bottom_edge = scale[(*(int*) value)];
+    if ( str == "vis_bottom_edge" )
+    {
+        float scale[] = { 1.0f, 0.98f, 0.96f, 0.94f, 0.92f, 0.90f, 0.88f, 0.86f, 0.84f, 0.82f, 0.80f };
+        vis_bottom_edge = scale[*((int*)Value)];
     }
 
     if ( str == "vis_animation_speed" )
-        vis_animation_speed = (*(int*) value) * 0.005f / 100;
+        vis_animation_speed = (*((int*)Value)) * 0.005) / 100.0;
 
-    return ADDON_STATUS_OK;
+    m_CurStatus = ADDON_STATUS_OK;
+
+    return m_CurStatus;
 }
 
 //-- Announce -----------------------------------------------------------------
