@@ -25,6 +25,25 @@ Simple right?
  4. In the add-on configuration set the path to a directory holding your images/wallpapers
  5. Done!
 
+## Build
+ 1. Install SOIL development package on your system
+      * Ubuntu:   `apt-get install libsoil-dev`
+      * Arch:     `pacaur -S soil-dev`?(Please confirm that)
+ 2. Clone the Kodi Github repository with:
+      * `cd <your-source-path>`
+      * `git clone https://github.com/xbmc/xbmc.git`
+ 3. Clone PictureIt repository 
+      * `cd <your-source-path>`
+      * `git clone https://github.com/linuxwhatelse/visualization.pictureit.git`
+ 4. Run create directories
+      * `mkdir <your-source-path>/visualization.pictureit/build`
+      * `mkdir <your-source-path>/kodi-binary-addons`
+      * `cd /home/user/sources/visualization.pictureit/build`
+ 5. Configure the build process with CMake
+      * `cmake -DADDONS_TO_BUILD=visualization.pictureit -DADDON_SRC_PREFIX=<your-source-path> -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=<your-source-path>/kodi-binary-addons -DPACKAGE_ZIP=1 <your-source-path>/kodi/project/cmake/addons`
+ 6. Build the PictureIt add-on
+     * `make -C <your-source-path>/visualization.pictureit/build` 
+
 ## ToDo
  * Rework the spectrum.<br>
 As of now it looks quite busy and doesn't match the music very well.<br>
