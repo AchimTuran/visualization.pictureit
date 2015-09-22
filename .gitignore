@@ -1,0 +1,67 @@
+
+# commonly used editors
+# vim
+*.swp
+# Eclipse
+*.project
+*.cproject
+.classpath
+*.sublime-*
+# KDevelop 4
+*.kdev4
+# gedit
+*~
+
+# generated files etc
+config.cache
+config.status
+config.log
+.directory
+*.d
+*.depend
+*.pc
+*.P
+*.[oa]
+*.l[oa]
+*.so
+*.so.*
+*.dylib
+*.lineno
+*.py[co]
+*.ver
+*.rej
+*.orig
+*.bak
+*.apk
+*.class
+
+# Windows specific generated files
+*.exp
+*.ilk
+*.ncb
+*.pdb
+*.suo
+*.sdf
+*.opensdf
+*.vcproj.*.user
+*.vcxproj.*.user
+*.vcxproj.user
+*.obj
+*.idb
+*ReSharper*
+*.idb
+
+# osx specifics
+/build/
+.DS_Store
+*.dSYM
+._*
+*.mode1v3
+*.pbxuser
+*project.xcworkspace
+*xcuserdata
+
+# Eclipse project files. Not needed as they are generated in two clicks if needed.
+.settings
+.project
+.cproject
