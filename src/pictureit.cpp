@@ -1,5 +1,6 @@
 #include "pictureit.h"
 #include <kodi/xbmc_vis_dll.h>
+#include <platform/util/util.h>
 
 #include <stdio.h>
 #include <sys/time.h>
@@ -21,6 +22,8 @@
 // At some point it might make sense to switch to FFTW for better performance once a proper spectrum is in place
 #include "mrfft.h"
 #include <memory>
+
+using namespace ADDON;
 
 // global default add-on handles
 ADDON_STATUS m_CurStatus    = ADDON_STATUS_UNKNOWN;
@@ -683,17 +686,17 @@ extern "C" ADDON_STATUS ADDON_SetSetting( const char *strSetting, const void* Va
     if ( !strSetting || !Value )
         return ADDON_STATUS_UNKNOWN;
 
-    std::string str = strSetting;
+    std::string str(strSetting);
 
     if ( str == "presets_root_dir" )
     {
-        const char* dir = (const char*)Value;
-        if ( dir && !dir[0] )
-        {
-          m_CurStatus = ADDON_STATUS_NEED_SETTINGS;
-          return m_CurStatus;
-        }
-        presets_root_dir = dir;
+        // const char* dir = (const char*)Value;
+        // if ( dir && !dir[0] )
+        // {
+        //   m_CurStatus = ADDON_STATUS_NEED_SETTINGS;
+        //   return m_CurStatus;
+        // }
+        presets_root_dir = (const char*)Value;
     }
 
     if ( str == "update_on_new_track" )
@@ -703,10 +706,10 @@ extern "C" ADDON_STATUS ADDON_SetSetting( const char *strSetting, const void* Va
         update_by_interval = *((bool*)Value);
 
     if ( str == "img_update_interval" )
-        img_update_interval = *((int*)Value)) * 60;
+        img_update_interval = (*(int*)Value) * 60;
 
     if ( str == "fade_time_ms" )
-        fade_time_ms = *((int*)Value) * 1000;
+        fade_time_ms = (*(int*)Value) * 1000;
 
     if ( str == "vis_enabled" )
         vis_enabled = *((bool*)Value);
@@ -715,16 +718,16 @@ extern "C" ADDON_STATUS ADDON_SetSetting( const char *strSetting, const void* Va
         vis_bg_enabled = *((bool*)Value);
 
     if ( str == "vis_half_width" )
-        vis_width = (*((int*)Value)) * 1.0) / 100.0);
+        vis_width = (double)(*(int*)Value) / 100.0;
 
     if ( str == "vis_bottom_edge" )
     {
         float scale[] = { 1.0f, 0.98f, 0.96f, 0.94f, 0.92f, 0.90f, 0.88f, 0.86f, 0.84f, 0.82f, 0.80f };
-        vis_bottom_edge = scale[*((int*)Value)];
+        vis_bottom_edge = scale[*(int*)Value];
     }
 
     if ( str == "vis_animation_speed" )
-        vis_animation_speed = (*((int*)Value)) * 0.005) / 100.0;
+        vis_animation_speed = ((*(int*)Value) * 0.005) / 100.0;
 
     m_CurStatus = ADDON_STATUS_OK;
 
